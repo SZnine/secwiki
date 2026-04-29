@@ -5,16 +5,30 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
-from .db import init_db
+from .db import init_db, get_db
 from .api import taxonomy, terms, history, search, import_export
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
 
+def auto_seed():
+    """Auto-initialize taxonomy if database is empty."""
+    try:
+        init_db()
+        conn = get_db()
+        count = conn.execute("SELECT COUNT(*) FROM domains").fetchone()[0]
+        conn.close()
+        if count == 0:
+            from .seed import seed
+            seed()
+    except Exception:
+        pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    auto_seed()
     yield
 
 
