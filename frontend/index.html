@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SecWiki</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">SecWiki</div>
+    <div class="search"><input id="searchInput" placeholder="搜索术语，例如 IDOR、SSRF、Prompt Injection" /></div>
+    <nav class="actions">
+      <button class="top-btn" id="themeBtn" type="button" title="切换主题">&#9788;</button>
+      <button class="top-btn" id="exportBtn" type="button">导出</button>
+      <button class="top-btn" id="importBtn" type="button">导入</button>
+    </nav>
+  </header>
+  <div class="layout">
+    <aside class="left">
+      <div class="sticky">
+        <div class="label">知识域</div>
+        <select id="domainSelect"></select>
+        <div class="tree-title">当前知识域下的对象</div>
+        <ul id="objectList" class="object-list"></ul>
+      </div>
+    </aside>
+    <main id="pageContent"></main>
+    <aside class="right"><div class="sticky toc" id="toc"></div></aside>
+  </div>
+  <input id="importFile" type="file" accept="application/json,.json" hidden />
+  <script src="/static/api.js"></script>
+  <script src="/static/state.js"></script>
+  <script src="/static/blocks.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
