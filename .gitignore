@@ -7,8 +7,8 @@ venv/
 env/
 .env
 
-# Database
-*.db
+# Database (committed for initial seed data)
+# *.db
 
 # IDE
 .vscode/
