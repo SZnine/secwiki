@@ -1,6 +1,7 @@
 import os
 import re
-from urllib.parse import quote
+import httpx
+from urllib.parse import quote, urlparse
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from fastapi.responses import JSONResponse
 
@@ -35,7 +36,6 @@ async def upload_image(
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(400, f"图片大小超过限制 (最大 {MAX_FILE_SIZE // 1024 // 1024}MB)")
 
-    # Build filename from slug (ASCII-safe), fallback to "image"
     base_name = safe_filename(term_slug) if term_slug else "image"
     filename = f"{base_name}{ext}"
     file_path = os.path.join(UPLOAD_DIR, filename)
@@ -43,7 +43,74 @@ async def upload_image(
     with open(file_path, "wb") as f:
         f.write(content)
 
-    # URL-encode the path for proper Chinese character support
+    encoded_filename = quote(filename)
+    relative_path = f"/uploads/images/{encoded_filename}"
+    return JSONResponse({"url": relative_path, "path": relative_path, "filename": filename})
+
+
+@router.post("/images/from-url")
+async def download_image(
+    url: str,
+    term_slug: str = Form(""),
+):
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+    # Validate URL
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netlock:
+        raise HTTPException(400, "无效的 URL")
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(400, "仅支持 http/https 链接")
+
+    # Check host allowlist (basic SSRF protection)
+    blocked_hosts = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
+    if parsed.netloc.lower() in blocked_hosts:
+        raise HTTPException(400, "不允许的域名")
+
+    try:
+        with httpx.Client(timeout=10.0, follow_redirects=True) as client:
+            resp = client.get(url)
+    except Exception as e:
+        raise HTTPException(400, f"无法下载图片: {e}")
+
+    if resp.status_code != 200:
+        raise HTTPException(400, f"下载失败: HTTP {resp.status_code}")
+
+    content = resp.content
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(400, f"图片大小超过限制 (最大 {MAX_FILE_SIZE // 1024 // 1024}MB)")
+
+    # Detect extension from Content-Type header or URL
+    ext = ""
+    content_type = resp.headers.get("content-type", "").lower()
+    if "image/png" in content_type:
+        ext = ".png"
+    elif "image/jpeg" in content_type or "image/jpg" in content_type:
+        ext = ".jpg"
+    elif "image/gif" in content_type:
+        ext = ".gif"
+    elif "image/webp" in content_type:
+        ext = ".webp"
+    elif "image/svg" in content_type:
+        ext = ".svg"
+    elif "image/bmp" in content_type:
+        ext = ".bmp"
+
+    if not ext:
+        # Try from URL path
+        url_ext = os.path.splitext(parsed.path or "")[1].lower()
+        if url_ext in ALLOWED_EXTENSIONS:
+            ext = url_ext
+        else:
+            ext = ".png"  # default fallback
+
+    base_name = safe_filename(term_slug) if term_slug else "image"
+    filename = f"{base_name}{ext}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+
+    with open(file_path, "wb") as f:
+        f.write(content)
+
     encoded_filename = quote(filename)
     relative_path = f"/uploads/images/{encoded_filename}"
     return JSONResponse({"url": relative_path, "path": relative_path, "filename": filename})

@@ -90,6 +90,18 @@ const api = {
     return r.json();
   },
 
+  async downloadImage(url, termSlug) {
+    const formData = new FormData();
+    formData.append("url", url);
+    if (termSlug) formData.append("term_slug", termSlug);
+    const r = await fetch(`${API_BASE}/uploads/images/from-url`, { method: "POST", body: formData });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error(body.detail || `Download failed: ${r.status}`);
+    }
+    return r.json();
+  },
+
   buildImportPrompt(selectedTerms, taxonomy) {
     const MAX_HIGH_QUALITY_BATCH_SIZE = 3;
 

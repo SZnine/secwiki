@@ -288,7 +288,19 @@ async function saveTerm() {
       try { blocks[i].items = JSON.parse(el.value); } catch(e) { toast("参考来源 JSON 格式错误"); return; }
     } else if (blocks[i].type === "diagram") {
       const urlEl = document.getElementById("block-diagram-url");
-      blocks[i].content = urlEl ? urlEl.value : blocks[i].content || "";
+      const urlValue = urlEl ? urlEl.value.trim() : "";
+      // If URL is external (starts with http), download and save locally
+      if (urlValue && urlValue.startsWith("http") && !urlValue.includes("/uploads/images/")) {
+        try {
+          const result = await api.downloadImage(urlValue, term.slug);
+          blocks[i].content = result.url || result.path;
+        } catch (err) {
+          toast("图片下载失败：" + err.message);
+          return;
+        }
+      } else {
+        blocks[i].content = urlValue || blocks[i].content || "";
+      }
     } else {
       blocks[i].content = el.value;
     }
