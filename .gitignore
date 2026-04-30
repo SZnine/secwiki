@@ -40,4 +40,4 @@ build/
 *.egg-info/
 
 # Uploaded images (user content)
-uploads/
+assets
