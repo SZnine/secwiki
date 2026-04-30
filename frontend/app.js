@@ -246,12 +246,28 @@ function startEdit() {
 function cancelEdit() {
   state.mode = "read";
   state.draftTerm = null;
+  _pendingDiagramFile = null;
+  if (_pendingDiagramPreviewUrl) { URL.revokeObjectURL(_pendingDiagramPreviewUrl); _pendingDiagramPreviewUrl = null; }
   renderTermPage(state.currentTerm, false);
 }
 
 async function saveTerm() {
   const term = state.currentTerm;
   const draft = state.draftTerm;
+
+  // Upload pending diagram file first (if any)
+  if (_pendingDiagramFile) {
+    try {
+      const result = await api.uploadImage(_pendingDiagramFile, term.slug);
+      const diagramBlock = draft.blocks.find(b => b.type === "diagram");
+      if (diagramBlock) diagramBlock.content = result.url || result.path;
+    } catch (err) {
+      toast("图片上传失败：" + err.message);
+      return;
+    }
+    _pendingDiagramFile = null;
+    if (_pendingDiagramPreviewUrl) { URL.revokeObjectURL(_pendingDiagramPreviewUrl); _pendingDiagramPreviewUrl = null; }
+  }
 
   // Read edited blocks from DOM
   const blocks = [...draft.blocks];
@@ -265,16 +281,14 @@ async function saveTerm() {
     } else if (blocks[i].type === "related_terms") {
       blocks[i].items = el.value.split(/[\n,]+/).filter(Boolean).map(l => {
         const label = l.trim();
-        // Try to resolve term_id from existing registry
         const existing = draft.blocks[i]?.items?.find(x => x.label === label);
         return { label, term_id: existing?.term_id || null };
       });
     } else if (blocks[i].type === "references") {
       try { blocks[i].items = JSON.parse(el.value); } catch(e) { toast("参考来源 JSON 格式错误"); return; }
     } else if (blocks[i].type === "diagram") {
-      // Diagram uses URL input field
       const urlEl = document.getElementById("block-diagram-url");
-      blocks[i].content = urlEl ? urlEl.value : "";
+      blocks[i].content = urlEl ? urlEl.value : blocks[i].content || "";
     } else {
       blocks[i].content = el.value;
     }
@@ -428,7 +442,10 @@ domainSelect.addEventListener("change", () => {
   }
 });
 
-// Diagram upload handlers
+// Diagram: track pending file for deferred upload on save
+let _pendingDiagramFile = null;
+let _pendingDiagramPreviewUrl = null;
+
 document.addEventListener("change", (e) => {
   if (e.target && e.target.id === "block-diagram-file") {
     const file = e.target.files?.[0];
@@ -437,27 +454,17 @@ document.addEventListener("change", (e) => {
     const preview = document.getElementById("block-diagram-preview");
     const urlInput = document.getElementById("block-diagram-url");
 
-    // Show loading state
+    // Store file for later upload on save
+    _pendingDiagramFile = file;
+    if (_pendingDiagramPreviewUrl) URL.revokeObjectURL(_pendingDiagramPreviewUrl);
+    _pendingDiagramPreviewUrl = URL.createObjectURL(file);
+
+    // Show local preview
     if (preview) {
       preview.style.display = "flex";
-      preview.innerHTML = '<span style="color:var(--muted)">上传中...</span>';
+      preview.innerHTML = `<img src="${_pendingDiagramPreviewUrl}" style="max-width:100%;max-height:400px">`;
     }
-
-    // Upload to server
-    api.uploadImage(file).then(result => {
-      const imageUrl = result.url || result.path;
-      if (preview) {
-        preview.style.display = "flex";
-        preview.innerHTML = `<img src="${imageUrl}" style="max-width:100%;max-height:400px" onerror="this.parentElement.innerHTML='<span style=\\'color:var(--muted)\\'>图片加载失败</span>'">`;
-      }
-      if (urlInput) urlInput.value = imageUrl;
-    }).catch(err => {
-      toast("上传失败：" + err.message);
-      if (preview) {
-        preview.style.display = "flex";
-        preview.innerHTML = '<span style="color:var(--muted)">暂无图片</span>';
-      }
-    });
+    if (urlInput) urlInput.value = "";
 
     e.target.value = "";
   }
@@ -467,6 +474,8 @@ document.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-action]");
   if (!btn) return;
   if (btn.dataset.action === "diagram-remove") {
+    _pendingDiagramFile = null;
+    if (_pendingDiagramPreviewUrl) { URL.revokeObjectURL(_pendingDiagramPreviewUrl); _pendingDiagramPreviewUrl = null; }
     const preview = document.getElementById("block-diagram-preview");
     const urlInput = document.getElementById("block-diagram-url");
     if (preview) { preview.style.display = "flex"; preview.innerHTML = '<span style="color:var(--muted)">暂无图片</span>'; }

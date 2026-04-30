@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from urllib.parse import unquote
 import os
 
 from .db import init_db, get_db
@@ -66,9 +67,10 @@ if os.path.isdir(FRONTEND_DIR):
 
     @app.get("/{path:path}")
     async def serve_spa(path: str, request: Request):
-        # Serve uploaded images
+        # Serve uploaded images (path is already URL-decoded by Starlette)
         if path.startswith("uploads/images/"):
-            safe_path = os.path.realpath(os.path.join(BASE_DIR, path))
+            decoded_path = unquote(path)
+            safe_path = os.path.realpath(os.path.join(BASE_DIR, decoded_path))
             if safe_path.startswith(os.path.realpath(UPLOADS_DIR)) and os.path.isfile(safe_path):
                 return FileResponse(safe_path)
             raise HTTPException(status_code=404)

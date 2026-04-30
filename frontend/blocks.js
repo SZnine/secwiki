@@ -15,10 +15,10 @@ const BlockRenderers = {
       const currentImage = block.image_url || block.content || "";
       return `<section class="field">
         <h3>图解</h3>
-        <input type="file" id="block-diagram-file" accept="image/*" data-action="diagram-upload" style="display:none">
+        <input type="file" id="block-diagram-file" accept="image/*" style="display:none">
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
           <button class="btn btn-sm" onclick="document.getElementById('block-diagram-file').click()">选择图片</button>
-          <button class="btn btn-sm btn-danger-outline" data-action="diagram-remove" data-block-id="${esc(block.id)}">删除图片</button>
+          <button class="btn btn-sm btn-danger-outline" data-action="diagram-remove">删除图片</button>
         </div>
         <input type="text" id="block-diagram-url" value="${esc(currentImage)}" placeholder="或直接粘贴图片 URL" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:4px;margin-bottom:8px">
         <div id="block-diagram-preview" class="diagram-render" style="min-height:100px;display:${currentImage ? 'flex' : 'none'};align-items:center;justify-content:center">
@@ -29,7 +29,7 @@ const BlockRenderers = {
     const imageUrl = block.image_url || block.content || "";
     if (!imageUrl) return `<section class="field"><p class="empty">暂无图解。</p></section>`;
     const caption = block.caption || block.title || "";
-    return `<section class="field"><div class="diagram-render"><img src="${esc(imageUrl)}" style="max-width:100%;height:auto" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" onload="this.nextElementSibling.style.display='none'"></div>${caption ? `<div class="diagram-caption">${esc(caption)}</div>` : ""}</section>`;
+    return `<section class="field"><div class="diagram-render"><img src="${esc(imageUrl)}" style="max-width:100%;height:auto" onerror="this.outerHTML='<p class=\\'empty\\'>图片加载失败</p>'"></div>${caption ? `<div class="diagram-caption">${esc(caption)}</div>` : ""}</section>`;
   },
 
   lab(block, editing) {

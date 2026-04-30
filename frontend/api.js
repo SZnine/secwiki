@@ -78,9 +78,10 @@ const api = {
     });
   },
 
-  async uploadImage(file) {
+  async uploadImage(file, termSlug) {
     const formData = new FormData();
     formData.append("file", file);
+    if (termSlug) formData.append("term_slug", termSlug);
     const r = await fetch(`${API_BASE}/uploads/images`, { method: "POST", body: formData });
     if (!r.ok) {
       const body = await r.json().catch(() => ({}));
