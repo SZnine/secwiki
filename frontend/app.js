@@ -271,6 +271,10 @@ async function saveTerm() {
       });
     } else if (blocks[i].type === "references") {
       try { blocks[i].items = JSON.parse(el.value); } catch(e) { toast("参考来源 JSON 格式错误"); return; }
+    } else if (blocks[i].type === "diagram") {
+      // Diagram uses URL input field
+      const urlEl = document.getElementById("block-diagram-url");
+      blocks[i].content = urlEl ? urlEl.value : "";
     } else {
       blocks[i].content = el.value;
     }
@@ -421,6 +425,56 @@ domainSelect.addEventListener("change", () => {
   const domain = state.taxonomy.domains.find(d => d.id === domainSelect.value);
   if (domain && domain.objects.length) {
     location.hash = `/object/${encodeURIComponent(domain.id)}/${encodeURIComponent(domain.objects[0].id)}`;
+  }
+});
+
+// Diagram upload handlers
+document.addEventListener("change", (e) => {
+  if (e.target && e.target.id === "block-diagram-file") {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const preview = document.getElementById("block-diagram-preview");
+      const urlInput = document.getElementById("block-diagram-url");
+      if (preview) { preview.style.display = "flex"; preview.innerHTML = `<img src="${ev.target.result}" style="max-width:100%;max-height:400px">`; }
+      if (urlInput) urlInput.value = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+});
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-action]");
+  if (!btn) return;
+  if (btn.dataset.action === "diagram-remove") {
+    const preview = document.getElementById("block-diagram-preview");
+    const urlInput = document.getElementById("block-diagram-url");
+    if (preview) { preview.style.display = "flex"; preview.innerHTML = '<span style="color:var(--muted)">暂无图片</span>'; }
+    if (urlInput) urlInput.value = "";
+  }
+});
+
+// Diagram upload file input change
+document.addEventListener("change", (e) => {
+  if (e.target && e.target.id === "block-diagram-file") {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const preview = document.getElementById("block-diagram-preview");
+      const urlInput = document.getElementById("block-diagram-url");
+      if (preview) {
+        preview.style.display = "flex";
+        preview.innerHTML = `<img src="${ev.target.result}" style="max-width:100%;max-height:400px">`;
+      }
+      if (urlInput) {
+        urlInput.value = ev.target.result;
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   }
 });
 
