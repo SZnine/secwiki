@@ -80,29 +80,31 @@ async def download_image(
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(400, f"图片大小超过限制 (最大 {MAX_FILE_SIZE // 1024 // 1024}MB)")
 
-    # Detect extension from Content-Type header or URL
-    ext = ""
-    content_type = resp.headers.get("content-type", "").lower()
-    if "image/png" in content_type:
-        ext = ".png"
-    elif "image/jpeg" in content_type or "image/jpg" in content_type:
-        ext = ".jpg"
-    elif "image/gif" in content_type:
-        ext = ".gif"
-    elif "image/webp" in content_type:
-        ext = ".webp"
-    elif "image/svg" in content_type:
-        ext = ".svg"
-    elif "image/bmp" in content_type:
-        ext = ".bmp"
+    # Detect extension from magic bytes (most reliable)
+    ext = _detect_ext_from_bytes(content)
+    if not ext:
+        # Fallback: Content-Type header
+        content_type = resp.headers.get("content-type", "").lower()
+        if "png" in content_type:
+            ext = ".png"
+        elif "jpeg" in content_type or "jpg" in content_type:
+            ext = ".jpg"
+        elif "gif" in content_type:
+            ext = ".gif"
+        elif "webp" in content_type:
+            ext = ".webp"
+        elif "svg" in content_type:
+            ext = ".svg"
+        elif "bmp" in content_type:
+            ext = ".bmp"
 
     if not ext:
-        # Try from URL path
+        # Last resort: URL path extension
         url_ext = os.path.splitext(parsed.path or "")[1].lower()
         if url_ext in ALLOWED_EXTENSIONS:
             ext = url_ext
         else:
-            ext = ".png"  # default fallback
+            ext = ".png"  # safe default
 
     base_name = safe_filename(term_slug) if term_slug else "image"
     filename = f"{base_name}{ext}"
@@ -114,3 +116,41 @@ async def download_image(
     encoded_filename = quote(filename)
     relative_path = f"/uploads/images/{encoded_filename}"
     return JSONResponse({"url": relative_path, "path": relative_path, "filename": filename})
+
+
+def _detect_ext_from_bytes(data: bytes) -> str:
+    """Detect image format from magic bytes."""
+    if len(data) < 12:
+        return ""
+
+    # PNG: 89 50 4E 47
+    if data[:4] == b'\x89PNG':
+        return ".png"
+
+    # JPEG: FF D8 FF
+    if data[:3] == b'\xff\xd8\xff':
+        return ".jpg"
+
+    # GIF: 47 49 46 38 (GIF8)
+    if data[:4] in (b'GIF8', b'GIF7'):
+        return ".gif"
+
+    # WebP: 52 49 46 46 .... 57 45 42 50 (RIFF....WEBP)
+    if data[:4] == b'RIFF' and len(data) >= 12 and data[8:12] == b'WEBP':
+        return ".webp"
+
+    # BMP: 42 4D
+    if data[:2] == b'BM':
+        return ".bmp"
+
+    # SVG (text)
+    if data[:5] == b'<svg ' or data[:6] == b'<?xml':
+        # Check if it contains SVG
+        try:
+            text = data[:1024].decode("utf-8", errors="ignore")
+            if "<svg" in text:
+                return ".svg"
+        except:
+            pass
+
+    return ""
