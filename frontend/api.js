@@ -78,6 +78,17 @@ const api = {
     });
   },
 
+  async uploadImage(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const r = await fetch(`${API_BASE}/uploads/images`, { method: "POST", body: formData });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error(body.detail || `Upload failed: ${r.status}`);
+    }
+    return r.json();
+  },
+
   buildImportPrompt(selectedTerms, taxonomy) {
     const MAX_HIGH_QUALITY_BATCH_SIZE = 3;
 

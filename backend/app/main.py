@@ -6,10 +6,13 @@ from fastapi.responses import FileResponse
 import os
 
 from .db import init_db, get_db
-from .api import taxonomy, terms, history, search, import_export
+from .api import taxonomy, terms, history, search, import_export, upload
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+UPLOADS_DIR = os.path.join(BASE_DIR, "uploads", "images")
+
+os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 
 def auto_seed():
@@ -48,6 +51,7 @@ app.include_router(history.router, prefix="/api/v1/terms", tags=["history"])
 app.include_router(terms.router, prefix="/api/v1/terms", tags=["terms"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(import_export.router, prefix="/api/v1", tags=["import-export"])
+app.include_router(upload.router, prefix="/api/v1/uploads", tags=["uploads"])
 
 
 @app.get("/api/v1/health")
@@ -62,8 +66,16 @@ if os.path.isdir(FRONTEND_DIR):
 
     @app.get("/{path:path}")
     async def serve_spa(path: str, request: Request):
+        # Serve uploaded images
+        if path.startswith("uploads/images/"):
+            safe_path = os.path.realpath(os.path.join(BASE_DIR, path))
+            if safe_path.startswith(os.path.realpath(UPLOADS_DIR)) and os.path.isfile(safe_path):
+                return FileResponse(safe_path)
+            raise HTTPException(status_code=404)
+
         if path.startswith("api/"):
-            return None
+            raise HTTPException(status_code=404)
+
         file_path = os.path.realpath(os.path.join(FRONTEND_DIR, path))
         if not file_path.startswith(FRONTEND_REAL):
             raise HTTPException(status_code=404)

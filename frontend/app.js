@@ -433,14 +433,32 @@ document.addEventListener("change", (e) => {
   if (e.target && e.target.id === "block-diagram-file") {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const preview = document.getElementById("block-diagram-preview");
-      const urlInput = document.getElementById("block-diagram-url");
-      if (preview) { preview.style.display = "flex"; preview.innerHTML = `<img src="${ev.target.result}" style="max-width:100%;max-height:400px">`; }
-      if (urlInput) urlInput.value = ev.target.result;
-    };
-    reader.readAsDataURL(file);
+
+    const preview = document.getElementById("block-diagram-preview");
+    const urlInput = document.getElementById("block-diagram-url");
+
+    // Show loading state
+    if (preview) {
+      preview.style.display = "flex";
+      preview.innerHTML = '<span style="color:var(--muted)">上传中...</span>';
+    }
+
+    // Upload to server
+    api.uploadImage(file).then(result => {
+      const imageUrl = result.url || result.path;
+      if (preview) {
+        preview.style.display = "flex";
+        preview.innerHTML = `<img src="${imageUrl}" style="max-width:100%;max-height:400px" onerror="this.parentElement.innerHTML='<span style=\\'color:var(--muted)\\'>图片加载失败</span>'">`;
+      }
+      if (urlInput) urlInput.value = imageUrl;
+    }).catch(err => {
+      toast("上传失败：" + err.message);
+      if (preview) {
+        preview.style.display = "flex";
+        preview.innerHTML = '<span style="color:var(--muted)">暂无图片</span>';
+      }
+    });
+
     e.target.value = "";
   }
 });
@@ -453,28 +471,6 @@ document.addEventListener("click", (e) => {
     const urlInput = document.getElementById("block-diagram-url");
     if (preview) { preview.style.display = "flex"; preview.innerHTML = '<span style="color:var(--muted)">暂无图片</span>'; }
     if (urlInput) urlInput.value = "";
-  }
-});
-
-// Diagram upload file input change
-document.addEventListener("change", (e) => {
-  if (e.target && e.target.id === "block-diagram-file") {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const preview = document.getElementById("block-diagram-preview");
-      const urlInput = document.getElementById("block-diagram-url");
-      if (preview) {
-        preview.style.display = "flex";
-        preview.innerHTML = `<img src="${ev.target.result}" style="max-width:100%;max-height:400px">`;
-      }
-      if (urlInput) {
-        urlInput.value = ev.target.result;
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
   }
 });
 
